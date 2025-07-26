@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
   # Runs the job every 15 minutes
   schedule:
-    - cron: '*/15 * * * *'
+  #  - cron: '*/15 * * * *'
 
 jobs:
   scrape:
