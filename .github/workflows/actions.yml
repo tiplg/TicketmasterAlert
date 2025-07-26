@@ -5,11 +5,18 @@ on:
   workflow_dispatch:
   # Runs the job every 15 minutes
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '*/15 * * * *'
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
+    
+    # --- FIX: Add this permissions block ---
+    # This grants the GITHUB_TOKEN write permissions for the repository's contents,
+    # which is necessary for the action to commit and push the updated CSV file.
+    permissions:
+      contents: write
+
     steps:
       # Step 1: Checks out your repository's code so the job can access it
       - name: Checkout repository
@@ -19,9 +26,9 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.13' # Using the specified Python version
 
-      # Step 3: Installs the Python packages your script needs
+      # Step 3: Installs dependencies from requirements.txt
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
