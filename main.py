@@ -9,6 +9,10 @@ import os # Import os module to check for file existence and environment variabl
 
 def send_pushbullet_alert(api_tokens, title, message):
     """Sends a notification via Pushbullet to multiple users."""
+    if not api_tokens:
+        print("No Pushbullet tokens provided. Skipping notification.")
+        return
+        
     print("Attempting to send Pushbullet notifications...")
     for token in api_tokens:
         if not token or "YOUR_PUSHBULLET_ACCESS_TOKEN" in token:
@@ -81,8 +85,11 @@ if __name__ == '__main__':
     output_csv_filename = "tickets_summary_log.csv"
     
     # Securely get tokens from environment variable (for GitHub Actions)
-    tokens_json = os.environ.get('PUSHBULLET_TOKENS_JSON', '[]')
-    PUSHBULLET_API_TOKENS = json.loads(tokens_json)
+    tokens_json = os.environ.get('PUSHBULLET_TOKENS_JSON')
+    if tokens_json:
+        PUSHBULLET_API_TOKENS = json.loads(tokens_json)
+    else:
+        PUSHBULLET_API_TOKENS = [] # Default to an empty list if the secret is not set or empty
     
     PRICE_ALERT_THRESHOLD = 300.0
 
