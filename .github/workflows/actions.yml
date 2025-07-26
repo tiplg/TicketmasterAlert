@@ -38,13 +38,24 @@ jobs:
         run: |
           python main.py
 
+      # --- FIX: Updated commit step to prevent push errors ---
       - name: Commit and push if there are changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add tickets_summary_log.csv
-          git diff --staged --quiet || git commit -m "Update ticket summary log"
-          git push
+          # Check if there are any changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+          else
+            # If there are changes, commit them
+            git commit -m "Update ticket summary log"
+            # Pull the latest changes from the remote repository before pushing
+            # to avoid the "fetch first" error. --rebase replays our commit on top.
+            git pull --rebase
+            # Push the changes
+            git push
+          fi
       
       # --- NEW: Upload debug screenshot on failure ---
       - name: Upload Debug Screenshot
