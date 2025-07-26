@@ -11,47 +11,46 @@ jobs:
   scrape:
     runs-on: ubuntu-latest
     
-    # --- FIX: Add this permissions block ---
-    # This grants the GITHUB_TOKEN write permissions for the repository's contents,
-    # which is necessary for the action to commit and push the updated CSV file.
     permissions:
       contents: write
 
     steps:
-      # Step 1: Checks out your repository's code so the job can access it
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Step 2: Sets up a Python environment
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13' # Using the specified Python version
+          python-version: '3.13'
 
-      # Step 3: Installs dependencies from requirements.txt
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
 
-      # Step 4: Installs the browsers for Playwright
       - name: Install Playwright browsers
         run: |
           playwright install
 
-      # Step 5: Runs your Python script
       - name: Run ticket scraper script
+        id: script
         env:
-          # This securely passes your secret tokens to the script
           PUSHBULLET_TOKENS_JSON: ${{ secrets.PUSHBULLET_TOKENS_JSON }}
         run: |
           python main.py
 
-      # Step 6: Commits the updated CSV file back to your repository
       - name: Commit and push if there are changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add tickets_summary_log.csv
-          # The following line will only commit if there are changes
           git diff --staged --quiet || git commit -m "Update ticket summary log"
           git push
+      
+      # --- NEW: Upload debug screenshot on failure ---
+      - name: Upload Debug Screenshot
+        # This step will only run if the previous script step failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-screenshot
+          path: debug_screenshot.png

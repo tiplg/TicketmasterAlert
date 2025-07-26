@@ -43,12 +43,25 @@ def scrape_ticket_info(url):
         try:
             print(f"Navigating to: {url}")
             page.goto(url, timeout=60000)
+
+            # Handle Cookie Consent Banner ---
+            try:
+                print("Checking for cookie consent banner...")
+                cookie_button_selector = "#onetrust-accept-btn-handler"
+                page.click(cookie_button_selector, timeout=5000)
+                print("Accepted cookies.")
+            except TimeoutError:
+                print("No cookie banner found, or it was already accepted.")
+            except Exception as e:
+                print(f"An error occurred trying to accept cookies: {e}")
+
+            # --- Wait for Dynamic Content ---
             container_selector = '[data-testid="ticketTypeInfo"]'
-            print("Waiting for dynamic content to load...")
-            print("Waiting for 10 seconds...")
-            time.sleep(10)
-            page.wait_for_selector(container_selector, state='visible', timeout=20000)
+            print("Waiting for ticket information to load...")
+            page.wait_for_selector(container_selector, state='visible', timeout=30000) 
             print("Ticket information loaded.")
+
+            # --- Scrape and Sanitize the Structured Data ---
             print("Scraping ticket details...")
             ticket_containers = page.query_selector_all(container_selector)
             if not ticket_containers:
@@ -71,6 +84,10 @@ def scrape_ticket_info(url):
             return scraped_data
         except TimeoutError:
             print("The page timed out or the ticket elements were not found in time.")
+            # --- DEBUGGING: Take a screenshot on timeout ---
+            screenshot_path = "debug_screenshot.png"
+            page.screenshot(path=screenshot_path, full_page=True)
+            print(f"Screenshot saved to {screenshot_path} for debugging.")
             return []
         except Exception as e:
             print(f"An error occurred: {e}")
