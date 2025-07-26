@@ -6,6 +6,7 @@ import time
 from datetime import datetime
 import requests # Import the requests module
 import os # Import os module to check for file existence and environment variables
+import sys # Import sys to control the script's exit code
 
 def send_pushbullet_alert(api_tokens, title, message):
     """Sends a notification via Pushbullet to multiple users."""
@@ -42,9 +43,9 @@ def scrape_ticket_info(url):
         scraped_data = []
         try:
             print(f"Navigating to: {url}")
-            page.goto(url, timeout=60000)
+            page.goto(url, timeout=30000)
 
-            # Handle Cookie Consent Banner ---
+            # --- FIX: Handle Cookie Consent Banner ---
             try:
                 print("Checking for cookie consent banner...")
                 cookie_button_selector = "#onetrust-accept-btn-handler"
@@ -58,7 +59,8 @@ def scrape_ticket_info(url):
             # --- Wait for Dynamic Content ---
             container_selector = '[data-testid="ticketTypeInfo"]'
             print("Waiting for ticket information to load...")
-            page.wait_for_selector(container_selector, state='visible', timeout=30000) 
+            time.sleep(10)
+            page.wait_for_selector(container_selector, state='visible', timeout=10000) 
             print("Ticket information loaded.")
 
             # --- Scrape and Sanitize the Structured Data ---
@@ -88,10 +90,11 @@ def scrape_ticket_info(url):
             screenshot_path = "debug_screenshot.png"
             page.screenshot(path=screenshot_path, full_page=True)
             print(f"Screenshot saved to {screenshot_path} for debugging.")
-            return []
+            # --- FIX: Exit with a non-zero code to signal failure to GitHub Actions ---
+            sys.exit(1)
         except Exception as e:
             print(f"An error occurred: {e}")
-            return []
+            sys.exit(1) # Also fail on other unexpected errors
         finally:
             print("Closing the browser.")
             browser.close()
