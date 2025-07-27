@@ -1,4 +1,4 @@
-# main.py
+# main.py - v1.1
 from playwright.sync_api import sync_playwright, TimeoutError
 import json
 import csv
@@ -43,7 +43,7 @@ def scrape_ticket_info(url):
         page = browser.new_page()
         
         # Set a larger viewport for higher resolution screenshots
-        page.set_viewport_size({"width": 1920, "height": 1080})
+        page.set_viewport_size({"width": 1000, "height": 2000})
         
         scraped_data = []
         try:
@@ -64,8 +64,8 @@ def scrape_ticket_info(url):
             # Wait for Dynamic Content
             container_selector = '[data-testid="ticketTypeInfo"]'
             print("Waiting for ticket information to load...")
-            time.sleep(10)
-            page.wait_for_selector(container_selector, state='visible', timeout=10000) 
+            time.sleep(30)
+            page.wait_for_selector(container_selector, state='visible', timeout=30000) 
             print("Ticket information loaded.")
 
             # Scrape and Sanitize the Structured Data
