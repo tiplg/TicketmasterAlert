@@ -1,4 +1,4 @@
-# main.py - v1.1
+# main.py - v1.3
 from playwright.sync_api import sync_playwright, TimeoutError
 import json
 import csv
@@ -114,7 +114,8 @@ if __name__ == '__main__':
     else:
         PUSHBULLET_API_TOKENS = []
     
-    PRICE_ALERT_THRESHOLD = 300.0
+    # Read the price threshold from an environment variable, with a default fallback
+    PRICE_ALERT_THRESHOLD = float(os.environ.get('PRICE_ALERT_THRESHOLD', '250.0'))
 
     print(f"Starting scraper for URL: {event_url}")
     scraped_info = scrape_ticket_info(event_url)
