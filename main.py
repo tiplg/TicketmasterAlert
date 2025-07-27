@@ -107,9 +107,12 @@ if __name__ == '__main__':
     event_url = "https://www.ticketmaster.nl/event/lowlands-2025-%7C-festivalticket-tickets/658441016"
     output_csv_filename = "tickets_summary_log.csv"
     
-    # --- Simplified Token Configuration ---
-    # Add your Pushbullet API tokens directly to this list.
-    PUSHBULLET_API_TOKENS = ["o.onNSREdDIoo9pqs7D72jChTbJujuqf5L"] 
+    # Read tokens from environment variable for secure and flexible configuration
+    tokens_json = os.environ.get('PUSHBULLET_TOKENS_JSON')
+    if tokens_json:
+        PUSHBULLET_API_TOKENS = json.loads(tokens_json)
+    else:
+        PUSHBULLET_API_TOKENS = []
     
     PRICE_ALERT_THRESHOLD = 300.0
 
