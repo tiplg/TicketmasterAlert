@@ -1,4 +1,4 @@
-# main.py - v1.3
+# main.py - v1.5
 from playwright.sync_api import sync_playwright, TimeoutError
 import json
 import csv
@@ -32,9 +32,10 @@ def send_pushbullet_alert(api_tokens, title, message):
         except Exception as e:
             print(f"❌ An error occurred while sending Pushbullet alert: {e}")
 
-def scrape_ticket_info(url):
+def scrape_ticket_info(url, api_tokens, alert_threshold):
     """
     Scrapes detailed ticket information from a given URL using Playwright.
+    Sends an immediate alert if a cheap ticket is found.
     """
     with sync_playwright() as p:
         
@@ -42,15 +43,16 @@ def scrape_ticket_info(url):
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
         
-        # Set a larger viewport for higher resolution screenshots
+        # Set a custom viewport for the browser window
         page.set_viewport_size({"width": 1000, "height": 2000})
         
         scraped_data = []
+        alert_sent_this_run = False # Flag to ensure only one alert is sent
+
         try:
             print(f"Navigating to: {url}")
             page.goto(url, timeout=60000)
 
-            # Handle Cookie Consent Banner
             try:
                 print("Checking for cookie consent banner...")
                 cookie_button_selector = "#onetrust-accept-btn-handler"
@@ -61,19 +63,18 @@ def scrape_ticket_info(url):
             except Exception as e:
                 print(f"An error occurred trying to accept cookies: {e}")
 
-            # Wait for Dynamic Content
             container_selector = '[data-testid="ticketTypeInfo"]'
             print("Waiting for ticket information to load...")
             time.sleep(30)
             page.wait_for_selector(container_selector, state='visible', timeout=30000) 
             print("Ticket information loaded.")
 
-            # Scrape and Sanitize the Structured Data
             print("Scraping ticket details...")
             ticket_containers = page.query_selector_all(container_selector)
             if not ticket_containers:
                 print("Could not find any ticket information containers.")
                 return []
+                
             for container in ticket_containers:
                 spans = container.query_selector_all('span')
                 if len(spans) == 4:
@@ -81,6 +82,15 @@ def scrape_ticket_info(url):
                     availability_int = int(availability_text.lower().replace('beschikbaar', '').strip())
                     price_text = spans[3].inner_text()
                     price_float = float(price_text.replace('€', '').replace('per stuk', '').replace(',', '.').strip())
+                    
+                    # --- IMMEDIATE ALERT LOGIC ---
+                    if not alert_sent_this_run and price_float < alert_threshold:
+                        print(f"\nIMMEDIATE ALERT: Cheap ticket found! Price: €{price_float}")
+                        alert_title = f"Cheap Ticket Alert: €{price_float}"
+                        alert_message = (f"A ticket for Lowlands is available for €{price_float}")
+                        send_pushbullet_alert(api_tokens, alert_title, alert_message)
+                        alert_sent_this_run = True # Set flag to prevent more alerts
+                    
                     ticket_info = {
                         "type": spans[0].inner_text(),
                         "availability": availability_int,
@@ -99,7 +109,6 @@ def scrape_ticket_info(url):
         finally:
             print("Closing the browser.")
             browser.close()
-            # Return empty list on failure so the script doesn't crash on processing
             return scraped_data
 
 
@@ -107,7 +116,6 @@ if __name__ == '__main__':
     event_url = "https://www.ticketmaster.nl/event/lowlands-2025-%7C-festivalticket-tickets/658441016"
     output_csv_filename = "tickets_summary_log.csv"
     
-    # Read tokens from environment variable for secure and flexible configuration
     tokens_json = os.environ.get('PUSHBULLET_TOKENS_JSON')
     if tokens_json:
         PUSHBULLET_API_TOKENS = json.loads(tokens_json)
@@ -118,7 +126,8 @@ if __name__ == '__main__':
     PRICE_ALERT_THRESHOLD = float(os.environ.get('PRICE_ALERT_THRESHOLD', '250.0'))
 
     print(f"Starting scraper for URL: {event_url}")
-    scraped_info = scrape_ticket_info(event_url)
+    # Pass tokens and threshold into the scraping function
+    scraped_info = scrape_ticket_info(event_url, PUSHBULLET_API_TOKENS, PRICE_ALERT_THRESHOLD)
 
     if scraped_info:
         # Process the data to create a summary
@@ -156,16 +165,6 @@ if __name__ == '__main__':
         print("\n--- Summary Ticket Information ---")
         print(json.dumps(summary_data, indent=2, ensure_ascii=False))
 
-        # Send Alert if Condition is Met
-        if cheapest_price < PRICE_ALERT_THRESHOLD:
-            print(f"\nCheap ticket found! Price: €{cheapest_price}")
-            alert_title = f"Cheap Ticket Alert: €{cheapest_price}"
-            alert_message = (f"A ticket for Lowlands is available for €{cheapest_price}. "
-                             f"Total tickets found: {total_tickets}.")
-            send_pushbullet_alert(PUSHBULLET_API_TOKENS, alert_title, alert_message)
-        else:
-            print(f"\nNo tickets found under €{PRICE_ALERT_THRESHOLD}. Cheapest is €{cheapest_price}.")
-
         # Append Summary to CSV File
         file_exists = os.path.exists(output_csv_filename)
         try:
@@ -176,7 +175,7 @@ if __name__ == '__main__':
                 writer.writerow(summary_data)
             print(f"\n✅ Summary data successfully appended to {output_csv_filename}")
         except Exception as e:
-            print(f"\n❌ Error saving file: {e}")
+            print(f"❌ Error saving file: {e}")
 
     else:
         print("\nNo ticket information was scraped.")
